@@ -24,12 +24,12 @@ await esbuild.build({
   external: ["pg-native"],
   banner: {
     js: `
-import { createRequire } from "module";
-import { fileURLToPath } from "url";
-import path from "path";
-const require = createRequire(import.meta.url);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { createRequire as __createRequire } from "module";
+import { fileURLToPath as __fileURLToPath } from "url";
+import { dirname as __dirname2 } from "path";
+const require = __createRequire(import.meta.url);
+const __filename = __fileURLToPath(import.meta.url);
+const __dirname = __dirname2(__filename);
 `.trim(),
   },
 });
