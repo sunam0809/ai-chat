@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "@workspace/db": ["../../lib/db/src/index.ts"],
+      "@workspace/api-zod": ["../../lib/api-zod/src/index.ts"],
+      "@workspace/integrations-anthropic-ai": ["../../lib/integrations-anthropic-ai/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
