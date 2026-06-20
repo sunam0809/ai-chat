@@ -476,8 +476,6 @@ importers:
         specifier: ^0.55.0
         version: 0.55.1
 
-  scripts: {}
-
 packages:
 
   '@anthropic-ai/sdk@0.55.1':
