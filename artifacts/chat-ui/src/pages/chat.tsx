@@ -563,7 +563,7 @@ export default function ChatPage() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="메시지를 입력하세요... (Enter: 전송, Shift+Enter: 줄바꿈)"
-                className="flex-1 min-h-[40px] max-h-40 resize-none bg-card border-border text-sm leading-relaxed"
+                className="flex-1 min-h-[40px] max-h-[70vh] resize-none bg-card border-border text-sm leading-relaxed"
                 disabled={streaming}
                 rows={1}
                 data-testid="input-message"
