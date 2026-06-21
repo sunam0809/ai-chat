@@ -1,12 +1,22 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "paths": {
-      "@workspace/db": ["../../lib/db/src/index.ts"],
-      "@workspace/api-zod": ["../../lib/api-zod/src/index.ts"],
-      "@workspace/integrations-anthropic-ai": ["../../lib/integrations-anthropic-ai/src/index.ts"]
-    }
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../lib/db"
+    },
+    {
+      "path": "../../lib/api-zod"
+    },
+    {
+      "path": "../../lib/integrations-anthropic-ai"
+    }
+  ]
 }
