@@ -67860,14 +67860,10 @@ app.use(import_express7.default.json({ limit: "10mb" }));
 app.use(import_express7.default.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/api", routes_default);
 if (process.env.NODE_ENV === "production") {
-  const staticDir = path3.join(process.cwd(), "artifacts/chat-ui/dist/public");
+  const staticDir = path3.join(process.cwd(), "artifacts/chat-ui/dist");
   app.use(import_express7.default.static(staticDir));
-  app.get(/.*/, (_req, res) => {
-    res.sendFile(path3.join(staticDir, "index.html"), (err) => {
-      if (err) {
-        res.status(200).send('<!DOCTYPE html><html><body><div id="root"></div></body></html>');
-      }
-    });
+  app.use((_req, res) => {
+    res.sendFile(path3.join(staticDir, "index.html"));
   });
 }
 var app_default = app;
