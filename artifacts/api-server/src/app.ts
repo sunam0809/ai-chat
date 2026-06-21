@@ -35,17 +35,14 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 app.use("/api", router);
 
-// Serve built frontend in production
 if (process.env.NODE_ENV === "production") {
-  // process.cwd() is the repo root when started via `node artifacts/api-server/dist/index.mjs`
   const staticDir = path.join(process.cwd(), "artifacts/chat-ui/dist");
   app.use(express.static(staticDir));
-  // SPA fallback: serve index.html for all non-API routes
   app.use((_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
   });
