@@ -55249,6 +55249,9 @@ var import_express6 = __toESM(require_express2(), 1);
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
 var router = (0, import_express.Router)();
+router.get("/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+});
 router.get("/healthz", (_req, res) => {
   res.json({ status: "ok" });
 });
