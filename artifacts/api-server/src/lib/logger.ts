@@ -1,9 +1,20 @@
 import pino from "pino";
 
-export const logger = pino({
-  level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "info" : "debug"),
-  ...(process.env.NODE_ENV !== "production"
-    ? { transport: { target: "pino-pretty", options: { colorize: true } } }
-    : {}),
-});
+const isProduction = process.env.NODE_ENV === "production";
 
+export const logger = pino({
+  level: process.env.LOG_LEVEL ?? "info",
+  redact: [
+    "req.headers.authorization",
+    "req.headers.cookie",
+    "res.headers['set-cookie']",
+  ],
+  ...(isProduction
+    ? {}
+    : {
+        transport: {
+          target: "pino-pretty",
+          options: { colorize: true },
+        },
+      }),
+});
