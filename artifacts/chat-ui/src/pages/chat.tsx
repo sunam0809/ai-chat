@@ -154,7 +154,7 @@ function CodeBlock({ children, className }: { children?: React.ReactNode; classN
   };
 
   return (
-    <div className="relative group my-3 rounded-lg overflow-hidden border border-border">
+    <div className="code-block-wrapper relative group my-3 rounded-lg overflow-hidden border border-border min-w-0">
       <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border flex-wrap gap-2">
         <span className="text-xs text-muted-foreground font-mono">
           {filename ? (
@@ -282,7 +282,7 @@ function MessageBubble({
       }`}>
         {isUser ? "나" : "AI"}
       </div>
-      <div className={`max-w-[85%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1`}>
+      <div className={`min-w-0 max-w-[85%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1 overflow-hidden`}>
         {!isUser && !streaming && (
           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
             <button onClick={copyMsg} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
@@ -300,7 +300,7 @@ function MessageBubble({
             {content}
           </div>
         ) : (
-          <div className="prose prose-sm prose-invert max-w-none text-foreground">
+          <div className="prose prose-sm prose-invert max-w-none text-foreground min-w-0 overflow-x-hidden">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -424,11 +424,11 @@ function WelcomeScreen({ onPrompt }: { onPrompt: (text: string) => void }) {
           <path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
         </svg>
       </div>
-      <h1 className="text-3xl font-bold text-foreground mb-2">무엇을 만들까요?</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">무엇을 만들까요?</h1>
       <p className="text-muted-foreground mb-8 text-center text-sm">
         코딩, 바이너리 빌드, 웹사이트 제작, 보안 연구 — 검열 없이 완전하게
       </p>
-      <div className="grid grid-cols-2 gap-3 w-full mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-6">
         {capabilities.map(cap => (
           <button
             key={cap.title}
@@ -643,7 +643,7 @@ export default function ChatPage() {
       )}
 
       {sidebarOpen && (
-        <div className="fixed md:relative inset-y-0 left-0 z-30 md:z-auto w-64 flex flex-col bg-sidebar border-r border-sidebar-border flex-shrink-0">
+        <div className="mobile-sidebar sidebar-slide-in fixed md:relative inset-y-0 left-0 z-30 md:z-auto w-64 md:w-64 flex flex-col bg-sidebar border-r border-sidebar-border flex-shrink-0">
           <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
             <span className="font-semibold text-sm text-sidebar-foreground flex items-center gap-2">
               <span className="text-purple-400">⚡</span> AI Builder
@@ -736,8 +736,8 @@ export default function ChatPage() {
             {activeConv?.title ?? "새 대화"}
           </span>
           {activeConvId && (
-            <span className="ml-auto text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-              {activeConv?.model ?? selectedModel}
+            <span className="ml-auto text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full truncate max-w-[120px] sm:max-w-none" title={activeConv?.model ?? selectedModel}>
+              {(activeConv?.model ?? selectedModel).split("/").pop()?.split("-").slice(0,3).join("-") ?? ""}
             </span>
           )}
         </div>
@@ -788,7 +788,7 @@ export default function ChatPage() {
           </div>
         </ScrollArea>
 
-        <div className="px-4 py-4 border-t border-border flex-shrink-0">
+        <div className="input-area px-3 sm:px-4 pt-3 pb-4 border-t border-border flex-shrink-0 bg-background">
           <div className="max-w-3xl mx-auto">
             {attachedFile && (
               <div className="flex items-center gap-2 mb-2 bg-muted/50 rounded-lg px-3 py-2">
@@ -800,7 +800,7 @@ export default function ChatPage() {
                 </button>
               </div>
             )}
-            <div className="flex gap-2 items-end bg-card border border-border rounded-2xl px-4 py-3 focus-within:border-primary/50 transition-colors">
+            <div className="flex gap-2 items-end bg-card border border-border rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 focus-within:border-primary/50 transition-colors">
               <input
                 ref={fileInputRef}
                 type="file"
