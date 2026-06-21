@@ -20,13 +20,19 @@ export default function RegisterPage() {
     setError("");
     if (password !== confirm) { setError("비밀번호가 일치하지 않습니다"); return; }
     if (password.length < 4) { setError("비밀번호는 4자 이상이어야 합니다"); return; }
+    if (username.length < 2) { setError("아이디는 2자 이상이어야 합니다"); return; }
     setLoading(true);
     try {
       await register({ username, password });
       await qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
       setLocation("/");
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? err?.message ?? "회원가입 실패");
+      const msg =
+        err?.data?.error ??
+        err?.data?.message ??
+        err?.message ??
+        "회원가입 실패. 다시 시도해주세요.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
