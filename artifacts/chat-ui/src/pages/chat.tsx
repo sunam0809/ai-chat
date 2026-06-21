@@ -27,6 +27,12 @@ const COMPILE_LANGS: Record<string, { label: string; key: string }> = {
 const DLL_LANGS: Record<string, { label: string; key: string }> = {
   c:   { label: "DLL", key: "c-dll" },
   cpp: { label: "DLL", key: "cpp-dll" },
+  asm: { label: "DLL", key: "asm-dll" },
+};
+
+const SYS_LANGS: Record<string, { label: string; key: string }> = {
+  c:   { label: "SYS (드라이버)", key: "c-sys" },
+  cpp: { label: "SYS (드라이버)", key: "cpp-sys" },
 };
 
 const LINUX_LANGS: Record<string, { label: string; key: string }> = {
@@ -67,7 +73,7 @@ function parseLangAndFile(className?: string): { lang: string; filename: string 
 function CodeBlock({ children, className }: { children?: React.ReactNode; className?: string }) {
   const [copied, setCopied] = useState(false);
   const [compiling, setCompiling] = useState(false);
-  const [compileTarget, setCompileTarget] = useState<"exe" | "dll" | "linux">("exe");
+  const [compileTarget, setCompileTarget] = useState<"exe" | "dll" | "sys" | "linux">("exe");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -79,6 +85,7 @@ function CodeBlock({ children, className }: { children?: React.ReactNode; classN
 
   const canCompile = lang in COMPILE_LANGS;
   const canDll = lang in DLL_LANGS;
+  const canSys = lang in SYS_LANGS;
   const canLinux = lang in LINUX_LANGS;
   const isHtml = lang === "html";
 
@@ -114,7 +121,7 @@ function CodeBlock({ children, className }: { children?: React.ReactNode; classN
       }
 
       const blob = await res.blob();
-      const outExt = compileTarget === "dll" ? "dll" : compileTarget === "linux" ? "" : "exe";
+      const outExt = compileTarget === "dll" ? "dll" : compileTarget === "sys" ? "sys" : compileTarget === "linux" ? "" : "exe";
       const outName = filename
         ? filename.replace(/\.[^.]+$/, outExt ? `.${outExt}` : "")
         : `output${outExt ? `.${outExt}` : ""}`;
@@ -173,7 +180,7 @@ function CodeBlock({ children, className }: { children?: React.ReactNode; classN
           )}
           {canCompile && (
             <>
-              {(canDll || canLinux) && (
+              {(canDll || canSys || canLinux) && (
                 <select
                   value={compileTarget}
                   onChange={e => setCompileTarget(e.target.value as any)}
@@ -181,6 +188,7 @@ function CodeBlock({ children, className }: { children?: React.ReactNode; classN
                 >
                   <option value="exe">EXE (Windows)</option>
                   {canDll && <option value="dll">DLL</option>}
+                  {canSys && <option value="sys">SYS (드라이버)</option>}
                   {canLinux && <option value="linux">ELF (Linux)</option>}
                 </select>
               )}
