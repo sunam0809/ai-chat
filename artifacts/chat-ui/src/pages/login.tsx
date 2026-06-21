@@ -23,7 +23,12 @@ export default function LoginPage() {
       await qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
       setLocation("/");
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? err?.message ?? "로그인 실패");
+      const msg =
+        err?.data?.error ??
+        err?.data?.message ??
+        err?.message ??
+        "로그인 실패. 다시 시도해주세요.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
