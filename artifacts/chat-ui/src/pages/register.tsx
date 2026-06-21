@@ -23,8 +23,8 @@ export default function RegisterPage() {
     if (username.length < 2) { setError("아이디는 2자 이상이어야 합니다"); return; }
     setLoading(true);
     try {
-      await register({ username, password });
-      await qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      const user = await register({ username, password });
+      qc.setQueryData(getGetMeQueryKey(), user);
       setLocation("/");
     } catch (err: any) {
       const msg =
