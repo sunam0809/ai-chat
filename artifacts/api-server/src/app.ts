@@ -45,12 +45,9 @@ if (process.env.NODE_ENV === "production") {
   // process.cwd() is the repo root when started via `node artifacts/api-server/dist/index.mjs`
   const staticDir = path.join(process.cwd(), "artifacts/chat-ui/dist");
   app.use(express.static(staticDir));
-  app.get(/.*/, (_req, res) => {
-    res.sendFile(path.join(staticDir, "index.html"), (err) => {
-      if (err) {
-        res.status(200).send("<!DOCTYPE html><html><body><div id=\"root\"></div></body></html>");
-      }
-    });
+  // SPA fallback: serve index.html for all non-API routes
+  app.use((_req, res) => {
+    res.sendFile(path.join(staticDir, "index.html"));
   });
 }
 
