@@ -1,5 +1,6 @@
 FROM node:24-slim
 
+ARG BUILD_DATE=unknown
 ENV COREPACK_ENABLE_STRICT=0
 RUN npm install -g pnpm@10 --force
 
