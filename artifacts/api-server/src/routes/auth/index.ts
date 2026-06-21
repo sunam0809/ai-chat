@@ -4,24 +4,10 @@ import { db, usersTable } from "@workspace/db";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-
-declare module "express-session" {
-  interface SessionData {
-    userId: number;
-    username: string;
-  }
-}
+import { signToken, COOKIE_NAME, COOKIE_OPTIONS } from "../../lib/jwt";
+import { requireAuth, type AuthenticatedRequest } from "../../middleware/auth";
 
 const router = Router();
-
-function saveSession(req: any): Promise<void> {
-  return new Promise((resolve, reject) => {
-    req.session.save((err: any) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-}
 
 router.post("/auth/register", async (req, res) => {
   const parsed = RegisterBody.safeParse(req.body);
@@ -38,9 +24,8 @@ router.post("/auth/register", async (req, res) => {
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const [user] = await db.insert(usersTable).values({ username, passwordHash }).returning();
-    req.session.userId = user.id;
-    req.session.username = user.username;
-    await saveSession(req);
+    const token = signToken({ userId: user.id, username: user.username });
+    res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS);
     res.status(201).json({ id: user.id, username: user.username, createdAt: user.createdAt });
   } catch (err) {
     logger.error({ err }, "register error");
@@ -66,9 +51,8 @@ router.post("/auth/login", async (req, res) => {
       res.status(401).json({ error: "아이디 또는 비밀번호가 올바르지 않습니다" });
       return;
     }
-    req.session.userId = user.id;
-    req.session.username = user.username;
-    await saveSession(req);
+    const token = signToken({ userId: user.id, username: user.username });
+    res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS);
     res.json({ id: user.id, username: user.username, createdAt: user.createdAt });
   } catch (err) {
     logger.error({ err }, "login error");
@@ -76,21 +60,16 @@ router.post("/auth/login", async (req, res) => {
   }
 });
 
-router.post("/auth/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
+router.post("/auth/logout", (_req, res) => {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+  res.json({ success: true });
 });
 
-router.get("/auth/me", async (req, res) => {
-  if (!req.session?.userId) {
-    res.status(401).json({ error: "Not authenticated" });
-    return;
-  }
+router.get("/auth/me", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.session.userId)).limit(1);
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId)).limit(1);
     if (!user) {
-      req.session.destroy(() => {});
+      res.clearCookie(COOKIE_NAME, { path: "/" });
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
