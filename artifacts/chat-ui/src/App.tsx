@@ -31,7 +31,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // 401/403 → 토큰 무효, 로그인으로
   useEffect(() => {
-    if (!isLoading && errStatus === 401 || errStatus === 403) {
+    if (!isLoading && (errStatus === 401 || errStatus === 403)) {
       clearToken();
       qc.removeQueries({ queryKey: ["getMe"] });
       setLocation("/login");
