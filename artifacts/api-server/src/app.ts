@@ -43,7 +43,7 @@ app.use("/api", router);
 // Serve built frontend in production
 if (process.env.NODE_ENV === "production") {
   // process.cwd() is the repo root when started via `node artifacts/api-server/dist/index.mjs`
-  const staticDir = path.join(process.cwd(), "artifacts/chat-ui/dist/public");
+  const staticDir = path.join(process.cwd(), "artifacts/chat-ui/dist");
   app.use(express.static(staticDir));
   app.get(/.*/, (_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"), (err) => {
