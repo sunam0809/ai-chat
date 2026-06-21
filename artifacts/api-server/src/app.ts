@@ -17,6 +17,7 @@ app.use(
     secret: process.env.SESSION_SECRET ?? "change-me-in-production",
     resave: false,
     saveUninitialized: false,
+    proxy: true,
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
