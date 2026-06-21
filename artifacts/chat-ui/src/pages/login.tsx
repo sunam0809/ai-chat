@@ -19,8 +19,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login({ username, password });
-      await qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      const user = await login({ username, password });
+      qc.setQueryData(getGetMeQueryKey(), user);
       setLocation("/");
     } catch (err: any) {
       const msg =
