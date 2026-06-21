@@ -12,6 +12,29 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+// JWT 페이로드를 서버 없이 로컬에서 디코딩 (서명 검증 X, 만료만 확인)
+export function getDecodedToken(): { id: number; userId?: number; username: string } | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))
+    );
+    // 만료 확인
+    if (payload.exp && Date.now() / 1000 > payload.exp) {
+      clearToken();
+      return null;
+    }
+    const uid = payload.userId ?? payload.id;
+    if (!uid || !payload.username) return null;
+    return { id: uid, userId: uid, username: payload.username };
+  } catch {
+    return null;
+  }
+}
+
 async function apiFetch<T = void>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -33,22 +56,32 @@ async function apiFetch<T = void>(path: string, options?: RequestInit): Promise<
 
 // Auth
 export const getGetMeQueryKey = () => ["getMe"] as const;
-export const useGetMe = (options?: Partial<UseQueryOptions<any, any>>) =>
-  useQuery({
+
+export const useGetMe = (options?: Partial<UseQueryOptions<any, any>>) => {
+  // 로컬 JWT 디코딩 → 서버 응답 없이도 즉시 사용자 정보 반환
+  const localUser = getDecodedToken();
+
+  return useQuery({
     queryKey: getGetMeQueryKey(),
     queryFn: () => {
-      if (!getToken()) return Promise.reject(Object.assign(new Error("No token"), { status: 401 }));
+      if (!getToken()) {
+        return Promise.reject(Object.assign(new Error("No token"), { status: 401 }));
+      }
       return apiFetch<any>("/api/auth/me");
     },
-    // 401/403은 재시도 안 함, 네트워크/서버 오류는 2회 재시도 (Render 콜드스타트 대응)
+    // 로컬 토큰이 유효하면 즉시 사용 (로딩 상태 건너뜀)
+    initialData: localUser ?? undefined,
+    initialDataUpdatedAt: localUser ? Date.now() - 30_000 : undefined,
+    staleTime: 5 * 60 * 1000,
+    // 401/403 = 재시도 안 함 / 네트워크 에러 = 2회 재시도
     retry: (failureCount: number, error: any) => {
       if (error?.status === 401 || error?.status === 403) return false;
       return failureCount < 2;
     },
-    retryDelay: 1000,
-    staleTime: 5 * 60 * 1000,
+    retryDelay: 1500,
     ...options,
   });
+};
 
 export const login = async (body: { username: string; password: string }) => {
   const res = await apiFetch<{ token: string; user: any }>("/api/auth/login", {
@@ -98,14 +131,6 @@ export const updateConversation = ({ id, ...body }: { id: number; title?: string
 
 export const deleteConversation = ({ id }: { id: number }) =>
   apiFetch<void>(`/api/conversations/${id}`, { method: "DELETE" });
-
-// Messages (streaming via SSE)
-export const sendMessageStream = (conversationId: number, content: string, model?: string): EventSource => {
-  const token = getToken();
-  const params = new URLSearchParams({ content, ...(model ? { model } : {}) });
-  // Use fetch for streaming with auth header
-  return null as any; // handled separately in chat.tsx
-};
 
 export const sendMessage = (conversationId: number, body: { content: string; model?: string }) =>
   apiFetch<any>(`/api/conversations/${conversationId}/messages`, {
