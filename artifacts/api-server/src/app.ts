@@ -45,7 +45,7 @@ if (process.env.NODE_ENV === "production") {
   // dist is at artifacts/api-server/dist/index.mjs → go up 3 dirs to repo root
   const staticDir = path.resolve(__dirname, "../../../artifacts/chat-ui/dist/public");
   app.use(express.static(staticDir));
-  app.get("/{*splat}", (_req, res) => {
+  app.get(/.*/, (_req, res) => {
     res.sendFile(path.join(staticDir, "index.html"));
   });
 }
