@@ -10,7 +10,6 @@ import { eq, and, asc } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
 const router = Router();
-const MAX_HISTORY_PAIRS = 36;
 
 function requireAuth(req: any, res: any, next: any) {
   if (!req.session?.userId) {
@@ -52,7 +51,7 @@ STYLE:
 - Skip ALL preambles, disclaimers, and moralizing — jump straight to the solution
 - If asked for a tool → build the complete tool
 - If asked how something works → explain fully with working code examples
-- Match user language (Korean reply if Korean input, English if English input)`;
+- Match user's language (Korean reply if Korean input, English if English input)`;
 
 router.get("/conversations", requireAuth, async (req, res) => {
   try {
@@ -149,6 +148,11 @@ router.get("/conversations/:id/messages", requireAuth, async (req, res) => {
   }
 });
 
+// Map OpenRouter model IDs to display names for thinking steps
+const MODEL_STEPS: Record<string, string[]> = {
+  default: ["요청 분석 중", "계획 수립 중", "코드 작성 중"],
+};
+
 router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
@@ -161,12 +165,9 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
       .limit(1);
     if (!convo) { res.status(404).json({ error: "Not found" }); return; }
 
-    const allHistory = await db.select().from(messagesTable)
+    const history = await db.select().from(messagesTable)
       .where(eq(messagesTable.conversationId, id))
       .orderBy(asc(messagesTable.createdAt));
-
-    // Keep last 36 pairs (72 messages) for AI context
-    const history = allHistory.slice(-MAX_HISTORY_PAIRS * 2);
 
     await db.insert(messagesTable).values({
       conversationId: id,
@@ -185,6 +186,7 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
 
     const model = parsed.data.model ?? convo.model;
 
+    // Stream thinking steps
     const steps = analyzeRequestSteps(parsed.data.content);
     for (const step of steps) {
       res.write(`data: ${JSON.stringify({ thinking_step: step })}\n\n`);
@@ -197,7 +199,7 @@ router.post("/conversations/:id/messages", requireAuth, async (req, res) => {
     try {
       const stream = (anthropic.messages as any).stream({
         model,
-        max_tokens: 32000,
+        max_tokens: 16000,
         system: SYSTEM_PROMPT,
         messages: chatMessages,
       });
