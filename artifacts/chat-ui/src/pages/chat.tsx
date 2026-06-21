@@ -252,7 +252,7 @@ export default function ChatPage() {
   const [thinkingText, setThinkingText] = useState("");
   const [thinkingExpanded, setThinkingExpanded] = useState(true);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 768);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -433,9 +433,16 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full bg-background overflow-hidden">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
       {/* Sidebar */}
       {sidebarOpen && (
-        <div className="w-64 flex flex-col bg-sidebar border-r border-sidebar-border flex-shrink-0">
+        <div className="fixed md:relative inset-y-0 left-0 z-30 md:z-auto w-64 flex flex-col bg-sidebar border-r border-sidebar-border flex-shrink-0">
           <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
             <span className="font-semibold text-sm text-sidebar-foreground">AI Chat</span>
             <button
