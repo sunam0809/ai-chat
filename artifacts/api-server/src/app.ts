@@ -48,7 +48,8 @@ if (process.env.NODE_ENV === "production") {
   const chatUiDist = path.resolve(process.cwd(), "artifacts/chat-ui/dist");
   if (fs.existsSync(chatUiDist)) {
     app.use(express.static(chatUiDist));
-    app.get("*", (_req, res) => {
+    // Express 5 uses path-to-regexp v8 which requires named wildcards
+    app.get("/{*path}", (_req, res) => {
       res.sendFile(path.join(chatUiDist, "index.html"));
     });
   }
