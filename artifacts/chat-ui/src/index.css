@@ -169,3 +169,68 @@ code {
 /* Sidebar transition */
 .sidebar-enter { transform: translateX(-100%); }
 .sidebar-enter-active { transform: translateX(0); transition: transform 200ms ease; }
+
+/* ═══════════════════════════════════════
+   Mobile Fixes
+   ═══════════════════════════════════════ */
+
+/* iOS safe area for bottom input */
+.input-area {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Code blocks: prevent horizontal overflow on mobile */
+pre {
+  max-width: 100%;
+  white-space: pre;
+  word-break: normal;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Message bubbles: constrain width */
+.message-content {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Prevent layout shift from code blocks */
+.code-block-wrapper {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Mobile viewport height fix (iOS keyboard) */
+html { height: -webkit-fill-available; }
+body { min-height: -webkit-fill-available; }
+
+/* Tap highlight removal on buttons */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Input area on mobile: slightly larger touch targets */
+@media (max-width: 767px) {
+  .message-input-area {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .code-block-wrapper pre {
+    font-size: 0.75rem;
+  }
+  /* Sidebar never takes more than 85% on small phones */
+  .mobile-sidebar {
+    max-width: min(16rem, 85vw);
+  }
+}
+
+/* Animated sidebar */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.sidebar-slide-in {
+  animation: slideInLeft 0.2s ease-out;
+}
