@@ -102,7 +102,8 @@ function CodeBlock({ children, className }: { children?: React.ReactNode; classN
     const token = getToken();
     let langKey: string;
     if (compileTarget === "dll") langKey = DLL_LANGS[lang]?.key ?? COMPILE_LANGS[lang]?.key;
-    else if (compileTarget === "linux") langKey = LINUX_LANGS[lang]?.key ?? COMPILE_LANGS[lang]?.key;
+    else if (compileTarget === "sys") langKey = SYS_LANGS[lang]?.key ?? COMPILE_LANGS[lang]?.key;
+    else if (compileTarget === "linux") langKey = LINUX_LANGS[lang]?.key ?? "c-linux";
     else langKey = COMPILE_LANGS[lang]?.key;
 
     try {
