@@ -67859,7 +67859,7 @@ app.use("/api", routes_default);
 if (process.env.NODE_ENV === "production") {
   const staticDir = path3.resolve(__dirname2, "../../../artifacts/chat-ui/dist/public");
   app.use(import_express7.default.static(staticDir));
-  app.get("/{*splat}", (_req, res) => {
+  app.get(/.*/, (_req, res) => {
     res.sendFile(path3.join(staticDir, "index.html"));
   });
 }
