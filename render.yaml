@@ -1,12 +1,11 @@
 services:
   - type: web
     name: ai-chat
-    env: node
+    env: docker
     region: singapore
     plan: free
-    buildCommand: npm install -g pnpm@9 && pnpm install --no-frozen-lockfile && NODE_ENV=production BASE_PATH=/ PORT=3000 pnpm --filter @workspace/chat-ui run build && pnpm --filter @workspace/api-server run build
-    startCommand: node artifacts/api-server/dist/index.mjs
-    healthCheckPath: /
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
