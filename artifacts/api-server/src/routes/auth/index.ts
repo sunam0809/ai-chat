@@ -4,7 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-import { signToken, COOKIE_NAME, COOKIE_OPTIONS } from "../../lib/jwt";
+import { signToken } from "../../lib/jwt";
 import { requireAuth, type AuthenticatedRequest } from "../../middleware/auth";
 
 const router = Router();
@@ -25,8 +25,7 @@ router.post("/auth/register", async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 12);
     const [user] = await db.insert(usersTable).values({ username, passwordHash }).returning();
     const token = signToken({ userId: user.id, username: user.username });
-    res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS);
-    res.status(201).json({ id: user.id, username: user.username, createdAt: user.createdAt });
+    res.status(201).json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } });
   } catch (err) {
     logger.error({ err }, "register error");
     res.status(500).json({ error: "서버 오류가 발생했습니다" });
@@ -52,8 +51,7 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
     const token = signToken({ userId: user.id, username: user.username });
-    res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS);
-    res.json({ id: user.id, username: user.username, createdAt: user.createdAt });
+    res.json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } });
   } catch (err) {
     logger.error({ err }, "login error");
     res.status(500).json({ error: "서버 오류가 발생했습니다" });
@@ -61,7 +59,6 @@ router.post("/auth/login", async (req, res) => {
 });
 
 router.post("/auth/logout", (_req, res) => {
-  res.clearCookie(COOKIE_NAME, { path: "/" });
   res.json({ success: true });
 });
 
@@ -69,7 +66,6 @@ router.get("/auth/me", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.user!.userId)).limit(1);
     if (!user) {
-      res.clearCookie(COOKIE_NAME, { path: "/" });
       res.status(401).json({ error: "Not authenticated" });
       return;
     }
