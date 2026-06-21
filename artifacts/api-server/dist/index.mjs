@@ -62381,7 +62381,7 @@ var COOKIE_OPTIONS = {
 // src/middleware/auth.ts
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : (req.cookies?.token ?? null);
   if (!token) {
     res.status(401).json({ error: "Not authenticated" });
     return;
@@ -62413,6 +62413,7 @@ router2.post("/auth/register", async (req, res) => {
     const passwordHash = await import_bcryptjs.default.hash(password, 12);
     const [user] = await db.insert(usersTable).values({ username, passwordHash }).returning();
     const token = signToken({ userId: user.id, username: user.username });
+    res.cookie("token", token, COOKIE_OPTIONS);
     res.status(201).json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } });
   } catch (err) {
     logger.error({ err }, "register error");
@@ -62438,6 +62439,7 @@ router2.post("/auth/login", async (req, res) => {
       return;
     }
     const token = signToken({ userId: user.id, username: user.username });
+    res.cookie("token", token, COOKIE_OPTIONS);
     res.json({ token, user: { id: user.id, username: user.username, createdAt: user.createdAt } });
   } catch (err) {
     logger.error({ err }, "login error");
@@ -62445,6 +62447,7 @@ router2.post("/auth/login", async (req, res) => {
   }
 });
 router2.post("/auth/logout", (_req, res) => {
+  res.clearCookie("token", { path: "/" });
   res.json({ success: true });
 });
 router2.get("/auth/me", requireAuth, async (req, res) => {
