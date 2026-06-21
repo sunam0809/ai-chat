@@ -1,4 +1,4 @@
-FROM node:24
+FROM node:24-slim
 
 ENV COREPACK_ENABLE_STRICT=0
 RUN npm install -g pnpm@10 --force
