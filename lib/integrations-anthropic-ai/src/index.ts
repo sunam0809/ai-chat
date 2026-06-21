@@ -1,1 +1,2 @@
-export { anthropic, getAnthropicClient } from "./client";
+export { streamChat } from "./client";
+export type { StreamEvent } from "./client";
