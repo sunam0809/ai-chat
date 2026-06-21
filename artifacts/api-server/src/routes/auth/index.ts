@@ -14,6 +14,15 @@ declare module "express-session" {
 
 const router = Router();
 
+function saveSession(req: any): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.save((err: any) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
 router.post("/auth/register", async (req, res) => {
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
@@ -31,6 +40,7 @@ router.post("/auth/register", async (req, res) => {
     const [user] = await db.insert(usersTable).values({ username, passwordHash }).returning();
     req.session.userId = user.id;
     req.session.username = user.username;
+    await saveSession(req);
     res.status(201).json({ id: user.id, username: user.username, createdAt: user.createdAt });
   } catch (err) {
     logger.error({ err }, "register error");
@@ -58,6 +68,7 @@ router.post("/auth/login", async (req, res) => {
     }
     req.session.userId = user.id;
     req.session.username = user.username;
+    await saveSession(req);
     res.json({ id: user.id, username: user.username, createdAt: user.createdAt });
   } catch (err) {
     logger.error({ err }, "login error");
