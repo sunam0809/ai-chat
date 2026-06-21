@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -67,7 +67,13 @@ function CodeBlock({ children, className }: { children?: React.ReactNode; classN
   );
 }
 
-function MessageBubble({ role, content, streaming }: { role: string; content: string; streaming?: boolean }) {
+function MessageBubble({
+  role, content, streaming = false,
+}: {
+  role: string;
+  content: string;
+  streaming?: boolean;
+}) {
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -107,7 +113,7 @@ function MessageBubble({ role, content, streaming }: { role: string; content: st
             {content}
           </div>
         ) : (
-          <div className={`prose prose-sm prose-invert max-w-none text-foreground ${streaming ? "streaming-cursor" : ""}`}>
+          <div className="prose prose-sm prose-invert max-w-none text-foreground">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -122,6 +128,74 @@ function MessageBubble({ role, content, streaming }: { role: string; content: st
             >
               {content}
             </ReactMarkdown>
+            {streaming && (
+              <span className="inline-block w-2 h-4 bg-purple-400 rounded-sm ml-0.5 animate-pulse align-middle" />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ThinkingPanel({
+  steps, currentStep, thinkingText, expanded, onToggle,
+}: {
+  steps: string[];
+  currentStep: string;
+  thinkingText: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const label = currentStep || steps[steps.length - 1] || "분석 중";
+  const isThinking = !!currentStep;
+
+  return (
+    <div className="flex gap-3 mb-4">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold bg-purple-600/20 text-purple-400 border border-purple-500/30">
+        AI
+      </div>
+      <div className="flex-1 min-w-0">
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
+        >
+          <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
+            {isThinking ? (
+              <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            ) : (
+              <svg className="w-3 h-3 text-purple-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span className="font-medium text-foreground/80">{label}</span>
+            <svg className={`w-3 h-3 ml-1 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+
+        {expanded && (
+          <div className="ml-2 border-l-2 border-purple-500/30 pl-3 space-y-1 mb-3">
+            {steps.map((step, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <svg className="w-3 h-3 text-purple-400/70 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                {step}
+              </div>
+            ))}
+            {isThinking && (
+              <div className="flex items-center gap-2 text-xs text-purple-400">
+                <div className="w-2.5 h-2.5 border border-purple-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                {currentStep}
+              </div>
+            )}
+            {thinkingText && (
+              <div className="mt-2 text-xs text-muted-foreground/70 font-mono bg-muted/30 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">
+                {thinkingText}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -137,7 +211,7 @@ function WelcomeScreen({ onPrompt }: { onPrompt: (text: string) => void }) {
     { title: "대화 기억", desc: "프로젝트별로 대화 히스토리 영구 보존", prompt: "이전 대화를 이어서 작업하고 싶어" },
   ];
   return (
-    <div className="flex flex-col items-center justify-center h-full px-4 max-w-2xl mx-auto">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 max-w-2xl mx-auto">
       <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-6 border border-primary/30">
         <svg viewBox="0 0 24 24" className="w-9 h-9 text-primary fill-current">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
@@ -150,7 +224,6 @@ function WelcomeScreen({ onPrompt }: { onPrompt: (text: string) => void }) {
           <button
             key={cap.title}
             onClick={() => onPrompt(cap.prompt)}
-            data-testid={`card-capability-${cap.title}`}
             className="text-left p-4 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-card/80 transition-all group"
           >
             <div className="font-semibold text-foreground text-sm mb-1 group-hover:text-primary transition-colors">{cap.title}</div>
@@ -172,10 +245,11 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamContent, setStreamContent] = useState("");
+  const [pendingUserMsg, setPendingUserMsg] = useState<string | null>(null);
   const [thinkingSteps, setThinkingSteps] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState<string>("");
   const [thinkingText, setThinkingText] = useState("");
-  const [thinkingExpanded, setThinkingExpanded] = useState(false);
+  const [thinkingExpanded, setThinkingExpanded] = useState(true);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -186,41 +260,49 @@ export default function ChatPage() {
   const { data: user } = useGetMe();
   const { data: conversations = [], refetch: refetchConvos } = useListConversations();
   const { data: models = [] } = useListModels();
-  const { data: activeConv, refetch: refetchConv } = useGetConversation(
+  const { data: activeConv } = useGetConversation(
     activeConvId as number,
     { query: { enabled: activeConvId !== null, queryKey: getGetConversationQueryKey(activeConvId as number) } }
   );
 
   const messages = activeConv?.messages ?? [];
-  const displayMessages = streaming
-    ? [...messages, { id: -1, conversationId: activeConvId ?? 0, role: "assistant", content: streamContent, createdAt: new Date().toISOString() }]
-    : messages;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [displayMessages, streaming, streamContent]);
+  }, [messages, streamContent, pendingUserMsg]);
 
   async function handleLogout() {
-    await logout();
+    try {
+      await logout();
+    } catch {}
     await qc.invalidateQueries({ queryKey: getGetMeQueryKey() });
     setLocation("/login");
   }
 
-  async function handleNewChat() {
+  function handleNewChat() {
+    if (streaming) {
+      abortRef.current?.abort();
+    }
     setActiveConvId(null);
     setInput("");
     setStreamContent("");
+    setPendingUserMsg(null);
     setThinkingSteps([]);
     setCurrentStep("");
     setThinkingText("");
     setAttachedFile(null);
+    setStreaming(false);
   }
 
   async function handleDeleteConv(id: number, e: React.MouseEvent) {
     e.stopPropagation();
-    await deleteConversation({ id });
-    await qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-    if (activeConvId === id) setActiveConvId(null);
+    try {
+      await deleteConversation({ id });
+      await qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      if (activeConvId === id) handleNewChat();
+    } catch {
+      toast({ title: "오류", description: "대화 삭제에 실패했습니다", variant: "destructive" });
+    }
   }
 
   async function streamMessages(convId: number, userContent: string, signal: AbortSignal) {
@@ -229,10 +311,14 @@ export default function ChatPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: userContent, model: selectedModel }),
       signal,
+      credentials: "include",
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error ?? `HTTP ${res.status}`);
+    }
     const reader = res.body?.getReader();
-    if (!reader) throw new Error("No stream");
+    if (!reader) throw new Error("스트림을 읽을 수 없습니다");
     const dec = new TextDecoder();
     let buf = "";
     while (true) {
@@ -252,7 +338,9 @@ export default function ChatPage() {
           if (json.thinking_done) setCurrentStep("");
           if (json.thinking) setThinkingText(p => p + json.thinking);
           if (json.content) setStreamContent(p => p + json.content);
-          if (json.error) toast({ title: "오류", description: json.error, variant: "destructive" });
+          if (json.error) {
+            toast({ title: "AI 오류", description: json.error, variant: "destructive" });
+          }
         } catch {}
       }
     }
@@ -266,10 +354,14 @@ export default function ChatPage() {
     setInput("");
     setStreaming(true);
     setStreamContent("");
+    setPendingUserMsg(text || `[파일: ${attachedFile?.name}]`);
     setThinkingSteps([]);
     setCurrentStep("");
     setThinkingText("");
     setThinkingExpanded(true);
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
 
     try {
       let convId = activeConvId;
@@ -278,9 +370,17 @@ export default function ChatPage() {
       if (attachedFile) {
         const fd = new FormData();
         fd.append("file", attachedFile);
-        const r = await fetch(`${BASE}/api/files/upload`, { method: "POST", body: fd });
+        const r = await fetch(`${BASE}/api/files/upload`, {
+          method: "POST",
+          body: fd,
+          credentials: "include",
+        });
+        if (!r.ok) throw new Error("파일 업로드 실패");
         const fileInfo = await r.json();
-        userContent = `[파일 첨부: ${fileInfo.fileName}]\n${text}`;
+        userContent = text
+          ? `[파일 첨부: ${fileInfo.fileName}]\n${text}`
+          : `[파일 첨부: ${fileInfo.fileName}]`;
+        setAttachedFile(null);
       }
 
       if (!convId) {
@@ -291,20 +391,22 @@ export default function ChatPage() {
         await qc.invalidateQueries({ queryKey: getListConversationsQueryKey() });
       }
 
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
       await streamMessages(convId, userContent, ctrl.signal);
 
-      setAttachedFile(null);
       await qc.invalidateQueries({ queryKey: getGetConversationQueryKey(convId) });
       await refetchConvos();
     } catch (err: any) {
       if (err?.name !== "AbortError") {
-        toast({ title: "오류", description: "메시지 전송에 실패했습니다. API 키가 설정됐는지 확인하세요.", variant: "destructive" });
+        toast({
+          title: "오류",
+          description: err?.message ?? "메시지 전송에 실패했습니다. API 키가 설정됐는지 확인하세요.",
+          variant: "destructive",
+        });
       }
     } finally {
       setStreaming(false);
       setStreamContent("");
+      setPendingUserMsg(null);
     }
   }
 
@@ -320,6 +422,10 @@ export default function ChatPage() {
     textareaRef.current?.focus();
   }
 
+  const showThinking = streaming && (thinkingSteps.length > 0 || currentStep || thinkingText);
+  const showStreamBubble = streaming && streamContent;
+  const showWaitingDots = streaming && !thinkingSteps.length && !currentStep && !streamContent;
+
   return (
     <div className="flex h-full bg-background overflow-hidden">
       {/* Sidebar */}
@@ -330,7 +436,6 @@ export default function ChatPage() {
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-muted-foreground hover:text-foreground transition-colors p-1"
-              data-testid="button-close-sidebar"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -341,7 +446,6 @@ export default function ChatPage() {
               onClick={handleNewChat}
               className="w-full justify-start gap-2 text-sm h-9"
               variant="ghost"
-              data-testid="button-new-chat"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               새 대화
@@ -351,19 +455,19 @@ export default function ChatPage() {
           <div className="px-3 py-2">
             <label className="text-xs text-muted-foreground mb-1 block">AI 모델</label>
             <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="h-8 text-xs bg-sidebar-accent border-sidebar-border" data-testid="select-model">
+              <SelectTrigger className="h-8 text-xs bg-sidebar-accent border-sidebar-border">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {models.length > 0 ? models.map(m => (
-                  <SelectItem key={m.id} value={m.id} data-testid={`option-model-${m.id}`}>
-                    {m.name}
-                  </SelectItem>
+                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                 )) : (
                   <>
-                    <SelectItem value="claude-sonnet-4-6">Claude Sonnet 4</SelectItem>
-                    <SelectItem value="claude-opus-4-8">Claude Opus 4</SelectItem>
-                    <SelectItem value="claude-haiku-4-5">Claude Haiku</SelectItem>
+                    <SelectItem value="anthropic/claude-sonnet-4-5">Claude Sonnet 4.5</SelectItem>
+                    <SelectItem value="anthropic/claude-opus-4">Claude Opus 4</SelectItem>
+                    <SelectItem value="anthropic/claude-haiku-4-5">Claude Haiku 4.5</SelectItem>
+                    <SelectItem value="deepseek/deepseek-r1">DeepSeek R1</SelectItem>
+                    <SelectItem value="google/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
                   </>
                 )}
               </SelectContent>
@@ -378,19 +482,19 @@ export default function ChatPage() {
                 {conversations.map(conv => (
                   <div
                     key={conv.id}
-                    onClick={() => setActiveConvId(conv.id)}
-                    data-testid={`item-conversation-${conv.id}`}
+                    onClick={() => {
+                      if (!streaming) setActiveConvId(conv.id);
+                    }}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer group transition-colors ${
                       activeConvId === conv.id
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "hover:bg-sidebar-accent/50 text-sidebar-foreground"
-                    }`}
+                    } ${streaming ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
                     <svg className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
                     <span className="text-xs flex-1 truncate">{conv.title}</span>
                     <button
                       onClick={e => handleDeleteConv(conv.id, e)}
-                      data-testid={`button-delete-${conv.id}`}
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all p-0.5"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -409,7 +513,6 @@ export default function ChatPage() {
               <span className="text-xs text-sidebar-foreground flex-1 truncate font-medium">{user?.username}</span>
               <button
                 onClick={handleLogout}
-                data-testid="button-logout"
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 title="로그아웃"
               >
@@ -428,7 +531,6 @@ export default function ChatPage() {
             <button
               onClick={() => setSidebarOpen(true)}
               className="text-muted-foreground hover:text-foreground transition-colors mr-1"
-              data-testid="button-open-sidebar"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
             </button>
@@ -446,80 +548,52 @@ export default function ChatPage() {
         {/* Messages */}
         <ScrollArea className="flex-1 px-4">
           <div className="max-w-3xl mx-auto py-6">
-            {!activeConvId ? (
+            {!activeConvId && !streaming ? (
               <WelcomeScreen onPrompt={handlePromptClick} />
-            ) : displayMessages.length === 0 && !streaming ? (
-              <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
-                메시지를 입력해 대화를 시작하세요
-              </div>
             ) : (
               <>
-                {messages.map((msg, i) => (
+                {/* Saved messages */}
+                {messages.map(msg => (
                   <MessageBubble
                     key={msg.id}
                     role={msg.role}
                     content={msg.content}
-                    streaming={false}
                   />
                 ))}
 
-                {/* Thinking panel — shown while streaming */}
-                {streaming && (thinkingSteps.length > 0 || currentStep || thinkingText) && (
-                  <div className="flex gap-3 mb-4 flex-row">
+                {/* Pending user message (visible immediately on send) */}
+                {streaming && pendingUserMsg && (
+                  <MessageBubble role="user" content={pendingUserMsg} />
+                )}
+
+                {/* Initial waiting dots before first thinking step */}
+                {showWaitingDots && (
+                  <div className="flex gap-3 mb-4">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold bg-purple-600/20 text-purple-400 border border-purple-500/30">
                       AI
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <button
-                        onClick={() => setThinkingExpanded(p => !p)}
-                        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 group"
-                      >
-                        <div className="flex items-center gap-1.5 bg-muted/50 border border-border rounded-lg px-3 py-1.5">
-                          {currentStep ? (
-                            <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                          ) : (
-                            <svg className="w-3 h-3 text-purple-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                          )}
-                          <span className="font-medium text-foreground/80">
-                            {currentStep || (thinkingSteps[thinkingSteps.length - 1] ?? "분석 중")}
-                          </span>
-                          <svg className={`w-3 h-3 ml-1 transition-transform ${thinkingExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </button>
-
-                      {thinkingExpanded && thinkingSteps.length > 0 && (
-                        <div className="ml-2 border-l-2 border-purple-500/30 pl-3 space-y-1 mb-3">
-                          {thinkingSteps.map((step, i) => (
-                            <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <svg className="w-3 h-3 text-purple-400/70 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                              {step}
-                            </div>
-                          ))}
-                          {currentStep && (
-                            <div className="flex items-center gap-2 text-xs text-purple-400">
-                              <div className="w-2.5 h-2.5 border border-purple-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                              {currentStep}
-                            </div>
-                          )}
-                          {thinkingText && (
-                            <div className="mt-2 text-xs text-muted-foreground/70 font-mono bg-muted/30 rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">
-                              {thinkingText}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                    <div className="flex items-center gap-1.5 pt-2">
+                      <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
                   </div>
                 )}
 
-                {/* Streaming response */}
-                {streaming && streamContent && (
-                  <MessageBubble
-                    key="stream"
-                    role="assistant"
-                    content={streamContent}
-                    streaming={true}
+                {/* Thinking panel */}
+                {showThinking && (
+                  <ThinkingPanel
+                    steps={thinkingSteps}
+                    currentStep={currentStep}
+                    thinkingText={thinkingText}
+                    expanded={thinkingExpanded}
+                    onToggle={() => setThinkingExpanded(p => !p)}
                   />
+                )}
+
+                {/* Streaming response bubble */}
+                {showStreamBubble && (
+                  <MessageBubble role="assistant" content={streamContent} streaming />
                 )}
               </>
             )}
@@ -528,62 +602,67 @@ export default function ChatPage() {
         </ScrollArea>
 
         {/* Input area */}
-        <div className="flex-shrink-0 px-4 py-4 border-t border-border">
+        <div className="px-4 py-4 border-t border-border flex-shrink-0">
           <div className="max-w-3xl mx-auto">
             {attachedFile && (
-              <div className="flex items-center gap-2 mb-2 px-3 py-2 bg-muted rounded-lg">
+              <div className="flex items-center gap-2 mb-2 bg-muted/50 rounded-lg px-3 py-2">
                 <svg className="w-4 h-4 text-muted-foreground flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                <span className="text-xs text-muted-foreground truncate flex-1">{attachedFile.name}</span>
-                <span className="text-xs text-muted-foreground">({(attachedFile.size / 1024).toFixed(1)}KB)</span>
-                <button onClick={() => setAttachedFile(null)} className="text-muted-foreground hover:text-destructive transition-colors ml-1">
+                <span className="text-xs text-muted-foreground flex-1 truncate">{attachedFile.name}</span>
+                <span className="text-xs text-muted-foreground">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+                <button onClick={() => setAttachedFile(null)} className="text-muted-foreground hover:text-destructive transition-colors">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
             )}
-            <div className="flex gap-2 items-end">
+            <div className="flex gap-2 items-end bg-card border border-border rounded-2xl px-4 py-3 focus-within:border-primary/50 transition-colors">
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="*/*"
                 className="hidden"
-                data-testid="input-file"
-                onChange={e => setAttachedFile(e.target.files?.[0] ?? null)}
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) setAttachedFile(f);
+                  e.target.value = "";
+                }}
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                title="파일 첨부 (exe, dll, sys, zip 등 모든 파일)"
-                data-testid="button-attach-file"
+                disabled={streaming}
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 pb-1 disabled:opacity-40"
+                title="파일 첨부"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
               </button>
               <Textarea
                 ref={textareaRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="메시지를 입력하세요... (Enter: 전송, Shift+Enter: 줄바꿈)"
-                className="flex-1 min-h-[40px] max-h-[70vh] resize-none bg-card border-border text-sm leading-relaxed"
-                disabled={streaming}
+                placeholder={streaming ? "응답 생성 중..." : "메시지를 입력하세요... (Shift+Enter로 줄 바꿈)"}
+                className="flex-1 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[24px] max-h-[200px] text-sm p-0 shadow-none"
                 rows={1}
-                data-testid="input-message"
+                disabled={streaming}
               />
-              <Button
-                onClick={streaming ? () => abortRef.current?.abort() : handleSend}
-                disabled={!streaming && !input.trim() && !attachedFile}
-                className="flex-shrink-0 h-10 w-10 p-0"
-                data-testid="button-send"
-                title={streaming ? "중지" : "전송"}
-              >
-                {streaming ? (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                )}
-              </Button>
+              {streaming ? (
+                <button
+                  onClick={() => abortRef.current?.abort()}
+                  className="flex-shrink-0 pb-1 text-muted-foreground hover:text-destructive transition-colors"
+                  title="중지"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() && !attachedFile}
+                  className="flex-shrink-0 pb-1 text-primary hover:text-primary/80 disabled:text-muted-foreground/40 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                </button>
+              )}
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-2">
-              exe, dll, sys, zip 등 모든 파일 첨부 가능 · 대화는 자동 저장됩니다
+            <p className="text-xs text-muted-foreground/50 text-center mt-2">
+              AI가 실수를 할 수 있습니다. 중요한 정보는 직접 확인하세요.
             </p>
           </div>
         </div>
