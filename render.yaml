@@ -1,19 +1,20 @@
 services:
   - type: web
     name: ai-chat
-    runtime: docker
-    dockerfilePath: ./Dockerfile
+    env: node
     region: singapore
     plan: free
+    buildCommand: npm install -g pnpm@9 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: node artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: "10000"
+      - key: OPENROUTER_API_KEY
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
         generateValue: true
-      - key: OPENROUTER_API_KEY
-        sync: false
-      - key: PORT
-        value: "10000"
-
