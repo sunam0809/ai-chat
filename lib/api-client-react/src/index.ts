@@ -1,15 +1,30 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
+const TOKEN_KEY = "auth_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 async function apiFetch<T = void>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    credentials: "include",
-  });
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(path, { ...options, headers });
   if (!res.ok) {
     const err: any = new Error(`HTTP ${res.status}`);
     err.status = res.status;
-    try { err.response = { data: await res.json() }; } catch {}
+    try { err.data = await res.json(); } catch {}
     throw err;
   }
   const text = await res.text();
@@ -21,20 +36,35 @@ export const getGetMeQueryKey = () => ["getMe"] as const;
 export const useGetMe = (options?: Partial<UseQueryOptions<any, any>>) =>
   useQuery({
     queryKey: getGetMeQueryKey(),
-    queryFn: () => apiFetch<any>("/api/auth/me"),
+    queryFn: () => {
+      if (!getToken()) return Promise.reject(Object.assign(new Error("No token"), { status: 401 }));
+      return apiFetch<any>("/api/auth/me");
+    },
     retry: false,
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
     ...options,
   });
 
-export const login = (body: { username: string; password: string }) =>
-  apiFetch<any>("/api/auth/login", { method: "POST", body: JSON.stringify(body) });
+export const login = async (body: { username: string; password: string }) => {
+  const res = await apiFetch<{ token: string; user: any }>("/api/auth/login", {
+    method: "POST", body: JSON.stringify(body),
+  });
+  setToken(res.token);
+  return res.user;
+};
 
-export const register = (body: { username: string; password: string }) =>
-  apiFetch<any>("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
+export const register = async (body: { username: string; password: string }) => {
+  const res = await apiFetch<{ token: string; user: any }>("/api/auth/register", {
+    method: "POST", body: JSON.stringify(body),
+  });
+  setToken(res.token);
+  return res.user;
+};
 
-export const logout = () =>
-  apiFetch<any>("/api/auth/logout", { method: "POST" });
+export const logout = () => {
+  clearToken();
+  return Promise.resolve();
+};
 
 // Conversations
 export const getListConversationsQueryKey = () => ["listConversations"] as const;
@@ -63,6 +93,19 @@ export const updateConversation = ({ id, ...body }: { id: number; title?: string
 
 export const deleteConversation = ({ id }: { id: number }) =>
   apiFetch<void>(`/api/conversations/${id}`, { method: "DELETE" });
+
+// Messages (streaming via SSE)
+export const sendMessageStream = (conversationId: number, content: string, model?: string): EventSource => {
+  const token = getToken();
+  const params = new URLSearchParams({ content, ...(model ? { model } : {}) });
+  // Use fetch for streaming with auth header
+  return null as any; // handled separately in chat.tsx
+};
+
+export const sendMessage = (conversationId: number, body: { content: string; model?: string }) =>
+  apiFetch<any>(`/api/conversations/${conversationId}/messages`, {
+    method: "POST", body: JSON.stringify(body),
+  });
 
 // Models
 export const getListModelsQueryKey = () => ["listModels"] as const;
