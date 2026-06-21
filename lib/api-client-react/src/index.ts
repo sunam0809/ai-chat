@@ -40,7 +40,12 @@ export const useGetMe = (options?: Partial<UseQueryOptions<any, any>>) =>
       if (!getToken()) return Promise.reject(Object.assign(new Error("No token"), { status: 401 }));
       return apiFetch<any>("/api/auth/me");
     },
-    retry: false,
+    // 401/403은 재시도 안 함, 네트워크/서버 오류는 2회 재시도 (Render 콜드스타트 대응)
+    retry: (failureCount: number, error: any) => {
+      if (error?.status === 401 || error?.status === 403) return false;
+      return failureCount < 2;
+    },
+    retryDelay: 1000,
     staleTime: 5 * 60 * 1000,
     ...options,
   });
