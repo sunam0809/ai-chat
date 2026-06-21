@@ -1,34 +1,65 @@
-import Anthropic from "@anthropic-ai/sdk";
+export type StreamEvent =
+  | { type: "content_block_delta"; delta: { type: "text_delta"; text: string } }
+  | { type: "message_stop" };
 
-function getClient(): Anthropic {
-  const apiKey = process.env.OPENROUTER_API_KEY ?? process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY 또는 ANTHROPIC_API_KEY가 설정되지 않았습니다.");
-  }
-  const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
-  return new Anthropic({
-    apiKey,
-    ...(useOpenRouter
-      ? {
-          baseURL: "https://openrouter.ai/api/v1",
-          defaultHeaders: {
-            "HTTP-Referer": "https://aichat.app",
-            "X-Title": "AI Chat",
-          },
-        }
-      : {}),
+export async function* streamChat(params: {
+  model: string;
+  messages: Array<{ role: string; content: string }>;
+  system?: string;
+  max_tokens?: number;
+}): AsyncGenerator<StreamEvent> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("GROQ_API_KEY가 설정되지 않았습니다.");
+
+  const messages = [
+    ...(params.system ? [{ role: "system", content: params.system }] : []),
+    ...params.messages,
+  ];
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: params.model,
+      messages,
+      stream: true,
+      max_tokens: params.max_tokens ?? 8192,
+      temperature: 0.7,
+    }),
   });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Groq API 오류: ${res.status} ${err}`);
+  }
+
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6).trim();
+      if (data === "[DONE]") return;
+      try {
+        const json = JSON.parse(data);
+        const text = json.choices?.[0]?.delta?.content;
+        if (text) {
+          yield { type: "content_block_delta", delta: { type: "text_delta", text } };
+        }
+      } catch {}
+    }
+  }
+
+  yield { type: "message_stop" };
 }
-
-let _client: Anthropic | null = null;
-
-export function getAnthropicClient(): Anthropic {
-  if (!_client) _client = getClient();
-  return _client;
-}
-
-export const anthropic = new Proxy({} as Anthropic, {
-  get(_target, prop) {
-    return (getAnthropicClient() as any)[prop];
-  },
-});
