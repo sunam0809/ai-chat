@@ -1,24 +1,19 @@
-FROM node:24-slim
+FROM node:24
 
 ENV COREPACK_ENABLE_STRICT=0
 RUN npm install -g pnpm@10 --force
 
 WORKDIR /app
 
-# Install dependencies
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY lib/ lib/
 COPY artifacts/api-server/package.json artifacts/api-server/
 COPY artifacts/chat-ui/package.json artifacts/chat-ui/
 RUN pnpm install --frozen-lockfile
 
-# Build both packages
 COPY . .
-RUN pnpm --filter @workspace/api-server run build
 RUN pnpm --filter @workspace/chat-ui run build
-
-# Cleanup dev artifacts but keep node_modules for pg runtime
-RUN find . -name "*.ts" -not -path "*/node_modules/*" -delete || true
+RUN pnpm --filter @workspace/api-server run build
 
 RUN mkdir -p artifacts/api-server/uploads
 
