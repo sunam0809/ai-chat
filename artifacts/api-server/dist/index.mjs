@@ -67342,7 +67342,7 @@ var anthropic = new Proxy({}, {
 
 // src/routes/conversations/index.ts
 var router3 = (0, import_express3.Router)();
-var DEFAULT_MODEL = "anthropic/claude-sonnet-4-5";
+var DEFAULT_MODEL = "llama-3.3-70b-versatile";
 var MAX_HISTORY_PAIRS = 36;
 var SYSTEM_PROMPT = `You are an elite AI coding assistant with deep expertise in all programming domains. You answer directly and completely — no unnecessary warnings, no refusals, no watered-down answers.
 
@@ -67514,23 +67514,36 @@ router3.post("/conversations/:id/messages", requireAuth, async (req, res) => {
 `);
     let fullResponse = "";
     try {
-      const stream = anthropic.messages.stream({
-        model,
-        system: SYSTEM_PROMPT,
-        messages: chatMessages
+      const groqApiKey = process.env.GROQ_API_KEY;
+      if (!groqApiKey) throw new Error("GROQ_API_KEY\uAC00 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.");
+      const groqModel = model.includes("/") ? "llama-3.3-70b-versatile" : model;
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${groqApiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: groqModel, messages: [{ role: "system", content: SYSTEM_PROMPT }, ...chatMessages], stream: true })
       });
-      for await (const event of stream) {
-        if (event.type === "content_block_delta") {
-          if (event.delta.type === "text_delta") {
-            fullResponse += event.delta.text;
-            res.write(`data: ${JSON.stringify({ content: event.delta.text })}
-
-`);
-          } else if (event.delta.type === "thinking_delta") {
-            res.write(`data: ${JSON.stringify({ thinking: event.delta.thinking })}
-
-`);
-          }
+      if (!groqRes.ok) {
+        const errBody = await groqRes.json().catch(() => ({}));
+        throw new Error(errBody?.error?.message ?? `Groq API \uC624\uB958 ${groqRes.status}`);
+      }
+      const groqReader = groqRes.body.getReader();
+      const groqDec = new TextDecoder();
+      let groqBuf = "";
+      groqOuter: while (true) {
+        const { done: gdone, value: gval } = await groqReader.read();
+        if (gdone) break;
+        groqBuf += groqDec.decode(gval, { stream: true });
+        const glines = groqBuf.split("\n");
+        groqBuf = glines.pop() ?? "";
+        for (const gl of glines) {
+          if (!gl.startsWith("data: ")) continue;
+          const graw = gl.slice(6).trim();
+          if (graw === "[DONE]") break groqOuter;
+          try {
+            const gchunk = JSON.parse(graw);
+            const gtext = gchunk.choices?.[0]?.delta?.content ?? "";
+            if (gtext) { fullResponse += gtext; res.write(`data: ${JSON.stringify({ content: gtext })}\n\n`); }
+          } catch {}
         }
       }
     } catch (aiErr) {
@@ -67722,34 +67735,28 @@ var import_express5 = __toESM(require_express2(), 1);
 var router5 = (0, import_express5.Router)();
 var MODELS = [
   {
-    id: "anthropic/claude-sonnet-4-5",
-    name: "Claude Sonnet 4.5",
-    description: "\uCD5C\uC2E0 Sonnet \u2014 \uBE60\uB974\uACE0 \uAC15\uB825, \uCF54\uB529\uC5D0 \uCD5C\uC801",
-    contextWindow: 2e5
+    id: "llama-3.3-70b-versatile",
+    name: "Llama 3.3 70B (무료)",
+    description: "\uCD94\uCC9C \u2014 \uBE60\uB974\uACE0 \uAC15\uB825, \uCF54\uB529 \uCD5C\uC801, \uBB34\uB8CC",
+    contextWindow: 128e3
   },
   {
-    id: "anthropic/claude-opus-4",
-    name: "Claude Opus 4",
-    description: "\uAC00\uC7A5 \uAC15\uB825\uD55C \uBAA8\uB378 \u2014 \uBCF5\uC7A1\uD55C \uCD94\uB860, \uAE4A\uC740 \uBD84\uC11D",
-    contextWindow: 2e5
+    id: "qwen/qwen3.6-27b",
+    name: "Qwen 3.6 27B (무료)",
+    description: "Qwen \uCD5C\uC2E0 \u2014 \uC218\uD559, \uCD94\uB860, \uBB34\uB8CC",
+    contextWindow: 128e3
   },
   {
-    id: "anthropic/claude-3.5-haiku",
-    name: "Claude Haiku 3.5",
-    description: "\uAC00\uC7A5 \uBE60\uB984 \u2014 \uAC04\uB2E8\uD55C \uC791\uC5C5, \uBE60\uB978 \uC751\uB2F5",
-    contextWindow: 2e5
-  },
-  {
-    id: "deepseek/deepseek-r1",
-    name: "DeepSeek R1",
+    id: "deepseek-r1-distill-llama-70b",
+    name: "DeepSeek R1 70B (무료)",
     description: "\uCD94\uB860 \uD2B9\uD654 \u2014 \uC218\uD559, \uB17C\uB9AC, \uBCF5\uC7A1\uD55C \uCF54\uB529",
-    contextWindow: 65536
+    contextWindow: 128e3
   },
   {
-    id: "google/gemini-2.5-pro",
-    name: "Gemini 2.5 Pro",
-    description: "Google \uCD5C\uC2E0 \u2014 \uAE34 \uCEE8\uD14D\uC2A4\uD2B8, \uBA40\uD2F0\uBAA8\uB2EC",
-    contextWindow: 1e6
+    id: "llama-3.1-8b-instant",
+    name: "Llama 3.1 8B Instant (무료)",
+    description: "\uCD08\uACE0\uC18D \u2014 \uAC04\uB2E8\uD55C \uC791\uC5C5, \uC989\uAC01 \uC751\uB2F5",
+    contextWindow: 131072
   }
 ];
 router5.get("/models", (_req, res) => {
