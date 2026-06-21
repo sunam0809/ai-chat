@@ -6,6 +6,7 @@ import {
   useGetMe, useListConversations, useGetConversation, useListModels,
   createConversation, deleteConversation, logout, updateConversation,
   getListConversationsQueryKey, getGetMeQueryKey, getGetConversationQueryKey,
+  getToken,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -306,12 +307,15 @@ export default function ChatPage() {
   }
 
   async function streamMessages(convId: number, userContent: string, signal: AbortSignal) {
+    const token = getToken();
     const res = await fetch(`${BASE}/api/conversations/${convId}/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ content: userContent, model: selectedModel }),
       signal,
-      credentials: "include",
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -370,10 +374,11 @@ export default function ChatPage() {
       if (attachedFile) {
         const fd = new FormData();
         fd.append("file", attachedFile);
+        const uploadToken = getToken();
         const r = await fetch(`${BASE}/api/files/upload`, {
           method: "POST",
           body: fd,
-          credentials: "include",
+          headers: uploadToken ? { "Authorization": `Bearer ${uploadToken}` } : {},
         });
         if (!r.ok) throw new Error("파일 업로드 실패");
         const fileInfo = await r.json();
