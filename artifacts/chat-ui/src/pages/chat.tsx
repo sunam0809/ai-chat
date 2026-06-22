@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -58,6 +58,25 @@ function downloadBlob(blob: Blob, filename: string) {
 
 function downloadText(content: string, filename: string) {
   downloadBlob(new Blob([content], { type: "text/plain;charset=utf-8" }), filename);
+}
+
+function parseFilesFromMessage(content: string): Array<{ lang: string; filename: string; code: string }> {
+  const re = /```([a-zA-Z0-9]+):([^\n\r`]+)\n([\s\S]*?)```/g;
+  const files: Array<{ lang: string; filename: string; code: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    const filename = m[2].trim();
+    if (filename) files.push({ lang: m[1], filename, code: m[3] });
+  }
+  return files;
+}
+
+async function downloadProjectZip(files: Array<{ filename: string; code: string }>, projectName: string) {
+  const { zipSync, strToU8 } = await import("fflate");
+  const zipData: Record<string, Uint8Array> = {};
+  for (const f of files) zipData[f.filename] = strToU8(f.code);
+  const zipped = zipSync(zipData, { level: 6 });
+  downloadBlob(new Blob([zipped], { type: "application/zip" }), `${projectName}.zip`);
 }
 
 function parseLangAndFile(className?: string): { lang: string; filename: string | null } {
@@ -263,6 +282,10 @@ function MessageBubble({
 }) {
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
+  const [zipping, setZipping] = useState(false);
+
+  const projectFiles = useMemo(() => (!isUser && !streaming ? parseFilesFromMessage(content) : []), [content, isUser, streaming]);
+  const hasProject = projectFiles.length >= 2;
 
   const copyMsg = () => {
     navigator.clipboard.writeText(content);
@@ -275,6 +298,16 @@ function MessageBubble({
     downloadText(content, `${firstLine || "response"}.md`);
   };
 
+  const handleZip = async () => {
+    setZipping(true);
+    try {
+      const name = projectFiles[0]?.filename?.split(".")[0] ?? "project";
+      await downloadProjectZip(projectFiles, name);
+    } finally {
+      setZipping(false);
+    }
+  };
+
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"} mb-6 group`}>
       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
@@ -284,7 +317,7 @@ function MessageBubble({
       </div>
       <div className={`min-w-0 max-w-[85%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1 overflow-hidden`}>
         {!isUser && !streaming && (
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity mb-1 flex-wrap">
             <button onClick={copyMsg} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
               {copied ? "복사됨!" : "복사"}
@@ -293,6 +326,22 @@ function MessageBubble({
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
               .md 저장
             </button>
+            {hasProject && (
+              <button
+                onClick={handleZip}
+                disabled={zipping}
+                className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"
+              >
+                {zipping ? (
+                  <span className="w-3 h-3 border border-amber-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                )}
+                📦 프로젝트 ZIP ({projectFiles.length}개 파일)
+              </button>
+            )}
           </div>
         )}
         {isUser ? (
@@ -543,6 +592,14 @@ export default function ChatPage() {
           if (json.thinking_step) {
             setCurrentStep(json.thinking_step);
             setThinkingSteps(p => [...p, json.thinking_step]);
+          }
+          if (json.search_query) {
+            const label = `🔍 웹 검색: ${json.search_query}`;
+            setCurrentStep(label);
+            setThinkingSteps(p => [...p, label]);
+          }
+          if (json.search_done) {
+            setCurrentStep("");
           }
           if (json.thinking_done) setCurrentStep("");
           if (json.thinking) setThinkingText(p => p + json.thinking);
@@ -848,7 +905,7 @@ export default function ChatPage() {
               )}
             </div>
             <p className="text-xs text-muted-foreground/40 text-center mt-2">
-              C/C++ 코드 → 컴파일 버튼으로 .exe/.dll 다운로드 · HTML → 미리보기 버튼으로 실시간 확인
+              파일 저장 버튼으로 개별 다운로드 · 여러 파일 → 📦 ZIP 다운로드 · HTML → 미리보기 · C/C++ → EXE/DLL 컴파일
             </p>
           </div>
         </div>
