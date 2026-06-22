@@ -2,6 +2,68 @@ export type StreamEvent =
   | { type: "content_block_delta"; delta: { type: "text_delta"; text: string } }
   | { type: "message_stop" };
 
+const FALLBACK_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-70b-versatile",
+  "llama-3.1-8b-instant",
+  "gemma2-9b-it",
+];
+
+async function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchWithRetry(
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  maxTokens: number,
+  apiKey: string,
+  retries = 3,
+): Promise<Response> {
+  const modelsToTry = [model, ...FALLBACK_MODELS.filter((m) => m !== model)];
+
+  for (const currentModel of modelsToTry) {
+    let lastErr: string | null = null;
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: currentModel,
+          messages,
+          stream: true,
+          max_tokens: maxTokens,
+          temperature: 0.7,
+        }),
+      });
+
+      if (res.ok) return res;
+
+      if (res.status === 429) {
+        const body = await res.text();
+        lastErr = body;
+        const retryAfterHeader = res.headers.get("retry-after");
+        const waitMs = retryAfterHeader
+          ? parseFloat(retryAfterHeader) * 1000
+          : Math.min(2000 * (attempt + 1), 10000);
+        await sleep(waitMs);
+        continue;
+      }
+
+      const body = await res.text();
+      throw new Error(`Groq API 오류: ${res.status} ${body}`);
+    }
+
+    if (lastErr) continue;
+  }
+
+  throw new Error("Groq rate limit 초과 — 잠시 후 다시 시도해 주세요.");
+}
+
 export async function* streamChat(params: {
   model: string;
   messages: Array<{ role: string; content: string }>;
@@ -16,25 +78,12 @@ export async function* streamChat(params: {
     ...params.messages,
   ];
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: params.model,
-      messages,
-      stream: true,
-      max_tokens: params.max_tokens ?? 8192,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Groq API 오류: ${res.status} ${err}`);
-  }
+  const res = await fetchWithRetry(
+    params.model,
+    messages,
+    params.max_tokens ?? 8192,
+    apiKey,
+  );
 
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
